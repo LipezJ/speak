@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>speak for mora</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+
+  <body>
+    <article>
+      <section id="cont_records">
+        <button id="recordsb">📃</button>
+        <div id="records" class="none">
+          <div id="header_records">
+            <h1>📖</h1>
+            <button id="closeb">❌</button>
+          </div>
+          <ul id="records_list">
+          </ul>
+        </div>
+      </section>
+      <section id="spell_container">
+        <textarea name="spell" id="spelli"></textarea>
+      </section>
+      <section class="contb">
+        <div class="contb">
+          <button id="formatb">⚙️ format</button>
+          <button id="clearb">🗑️ clear</button>
+        </div>
+        <div id="main" class="contb">
+          <button id="copyb">📋</button>
+          <button id="listenb">🎙️</button>
+        </div>
+      </section>
+    </article>
+  </body>
+</html>
