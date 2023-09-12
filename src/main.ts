@@ -16,12 +16,10 @@ const recordsList: string[] = []
 
 recognition.onend = () => {
   if (!end) {
-    console.log('end')
     oldText = text + '\n'
     listen()
     end = false
   } else {
-    console.log('end')
     end = false
   }
 }
@@ -53,6 +51,7 @@ function listen() {
     spellArea.value = text
     addRecords()
   }
+  recognition.stop()
   recognition.start()
   spellButtonListen.classList.add('active')
   spellButtonListen.removeEventListener('click', listen)
