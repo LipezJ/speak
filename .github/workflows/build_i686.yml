@@ -1,9 +1,18 @@
-name: startlottery-desktop
+name: speak
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'The branch to build'
+        required: true
+        default: 'main'
+      tag_version:
+        description: 'The short version'
+        required: true
+        default: '0.0.1'
+
+env:
+  APP_NAME: speak
 
 jobs:
   release:
@@ -12,23 +21,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ ubuntu-latest ]
-    runs-on: ${{ matrix.platform }}
+        os: [ ubuntu-latest, windows-latest ]
+        include:
+          - os: 'ubuntu-latest'
+            label: 'linux'
+            executable_extension: ''
+          - os: 'macos-latest'
+            label: 'macos'
+            executable_extension: ''
+          - os: 'windows-latest'
+            label: 'windows'
+            executable_extension: '.exe'
+    runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install dependencies (ubuntu only)
-        if: matrix.platform == 'ubuntu-latest'
-
+      - name: Install dependencies (ubuntu)
+        if: matrix.os == 'ubuntu-latest'
         run: |-
 
           sudo ls -lR /etc/apt/
-          echo -------------
-          # sudo sed 's/mirror+file:\/etc\/apt\/apt-mirrors.txt/[arch-=amd64,i386] http:\/\/ports.ubuntu.com\/ubuntu-ports\//g' /etc/apt/sources.list | sudo tee /etc/apt/sources.list.d/ports.list
-          # echo -------------
-          # sudo sed -i 's/mirror+file:\/etc\/apt\/apt-mirrors.txt/[arch=amd64,i386] http:\/\/archive.ubuntu.com\/ubuntu\//g' /etc/apt/sources.list
           cat > /tmp/sources.list << EOF
           deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu jammy main multiverse universe restricted
           deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu jammy-security main multiverse universe restricted
@@ -42,14 +56,6 @@ jobs:
           EOF
           sudo mv /etc/apt/sources.list /etc/apt/sources.list.default
           sudo mv /tmp/sources.list /etc/apt/sources.list
-
-          echo -------------
-          echo /etc/apt/sources.list && cat /etc/apt/sources.list
-          echo -------------
-          echo /etc/apt/apt-mirrors.txt && cat /etc/apt/apt-mirrors.txt
-          echo -------------
-          echo /etc/apt/sources.list.d/ports.list && cat /etc/apt/sources.list.d/ports.list || true
-          echo -------------
 
           sudo dpkg --add-architecture i386 
 
@@ -66,6 +72,12 @@ jobs:
             libssl-dev:i386 \
             libgtk-3-dev:i386 \
             librsvg2-dev:i386
+
+          sudo apt install -y \
+            libwebkit2gtk-4.0-dev \
+            libssl-dev \
+            libgtk-3-dev \
+            librsvg2-dev
 
       - name: Rust setup
         uses: dtolnay/rust-toolchain@stable
@@ -84,30 +96,68 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Build the app
+      - name: Build the app for linux
+        if: matrix.os == 'ubuntu-latest'
         run: |-
-
+        
+          rustup target add x86_64-unknown-linux-gnu
           rustup target add i686-unknown-linux-gnu
 
-          cargo install tauri-cli
+          npm run tauri build -- --target x86_64-unknown-linux-gnu
 
           export RUSTFLAGS="-C linker=i686-linux-gnu-gcc"
           export PKG_CONFIG_PATH=/usr/lib/i386-linux-gnu/pkgconfig/
           export PKG_CONFIG_SYSROOT_DIR=/usr/lib/i386-linux-gnu
 
-          cargo tauri build --target i686-unknown-linux-gnu
+          npm run tauri build -- --target i686-unknown-linux-gnu
 
+      - name: Build the app for windows
+        if: matrix.os == 'windows-latest'
+        run: |-
+          rustup target add x86_64-pc-windows-msvc
+          rustup target add i686-pc-windows-msvc
+
+          npm run tauri build -- --target x86_64-pc-windows-msvc
+          npm run tauri build -- --target i686-pc-windows-msvc
+
+      - name: Prepare release files on ${{matrix.label}}
+        continue-on-error: true
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # for 64-bit binary
+          mv src-tauri/target/x86_64-unknown-linux-gnu/release/${{env.APP_NAME}}${{matrix.executable_extension}} ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_amd64${{matrix.executable_extension}}
+          mv src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/${{env.APP_NAME}}_${{ github.event.inputs.tag_version }}_amd64.AppImage ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_amd64.AppImage
+          mv src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/${{env.APP_NAME}}_${{ github.event.inputs.tag_version }}_amd64.deb ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_amd64.deb
+          
+          # for 32-bit binary
+          mv src-tauri/target/i686-unknown-linux-gnu/release/${{env.APP_NAME}}${{matrix.executable_extension}} ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_i386${{matrix.executable_extension}}
+          mv src-tauri/target/i686-unknown-linux-gnu/release/bundle/appimage/${{env.APP_NAME}}_${{ github.event.inputs.tag_version }}_i386.AppImage ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_i386.AppImage
+          mv src-tauri/target/i686-unknown-linux-gnu/release/bundle/deb/${{env.APP_NAME}}_${{ github.event.inputs.tag_version }}_i386.deb ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_i386.deb
+
+      - name: Prepare release files on ${{matrix.label}}
+        continue-on-error: true
+        if: matrix.os == 'windows-latest'
+        run: |
+          # for 64-bit binary
+          mv src-tauri/target/x86_64-pc-windows-msvc/release/${{env.APP_NAME}}${{matrix.executable_extension}} ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_x64${{matrix.executable_extension}}
+          mv src-tauri/target/x86_64-pc-windows-msvc/release/bundle/msi/${{env.APP_NAME}}_${{ github.event.inputs.tag_version }}_x64_en-US.msi ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_x64.msi
+          mv src-tauri/target/x86_64-pc-windows-msvc/release/bundle/nsis/${{env.APP_NAME}}_${{ github.event.inputs.tag_version }}_x64-setup.exe ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_x64-setup.exe
+
+          # for 32-bit binary
+          mv src-tauri/target/i686-pc-windows-msvc/release/${{env.APP_NAME}}${{matrix.executable_extension}} ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_x86${{matrix.executable_extension}}
+          mv src-tauri/target/i686-pc-windows-msvc/release/bundle/msi/${{env.APP_NAME}}_${{ github.event.inputs.tag_version }}_x86_en-US.msi ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_x86.msi
+          mv src-tauri/target/i686-pc-windows-msvc/release/bundle/nsis/${{env.APP_NAME}}_${{ github.event.inputs.tag_version }}_x86-setup.exe ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}_x86-setup.exe
+        
       - name: Display structure of build files
         run: |
-          ls -l .
+          cd ./src-tauri/target
+          ls -lR .
         
       - name: 'Publish binary to release'
         continue-on-error: true
         uses: xresloader/upload-to-github-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
         with:
           tag_name: ${{ github.event.inputs.tag_version }}
           file: ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}*
