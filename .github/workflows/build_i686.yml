@@ -1,0 +1,87 @@
+name: startlottery-desktop
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ ubuntu-latest ]
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install dependencies (ubuntu only)
+        if: matrix.platform == 'ubuntu-latest'
+
+        run: |-
+
+          sudo dpkg --add-architecture i386 
+
+          sudo apt install -y \
+            gcc-multilib \
+            g++-multilib
+
+          sudo apt-get install gcc-i686-linux-gnu
+
+          sudo apt install -y \
+            libwebkit2gtk-4.0-dev:i386 \
+            libssl-dev:i386 \
+            libgtk-3-dev:i386 \
+            librsvg2-dev:i386
+
+      - name: Rust setup
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Sync node version and setup cache
+        uses: actions/setup-node@v4
+        with:
+          node-version: 'lts/*'
+          cache: 'npm'
+
+      - name: Install frontend dependencies
+        run: npm install
+
+      - name: Build the app
+        run: |-
+
+          rustup target add i686-unknown-linux-gnu
+
+          cargo install tauri-cli
+
+          export RUSTFLAGS="-C linker=i686-linux-gnu-gcc"
+          export PKG_CONFIG_PATH=/usr/lib/i386-linux-gnu/pkgconfig/
+          export PKG_CONFIG_SYSROOT_DIR=/usr/lib/i386-linux-gnu
+
+          cargo tauri build --target i686-unknown-linux-gnu
+
+      - name: Display structure of build files
+        run: |
+          ls -l .
+        
+      - name: 'Publish binary to release'
+        continue-on-error: true
+        uses: xresloader/upload-to-github-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        with:
+          tag_name: ${{ github.event.inputs.tag_version }}
+          file: ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}*
+          tags: true
+          draft: false
+          overwrite: true
