@@ -26,9 +26,6 @@ jobs:
           - os: 'ubuntu-latest'
             label: 'linux'
             executable_extension: ''
-          - os: 'macos-latest'
-            label: 'macos'
-            executable_extension: ''
           - os: 'windows-latest'
             label: 'windows'
             executable_extension: '.exe'
@@ -150,8 +147,7 @@ jobs:
         
       - name: Display structure of build files
         run: |
-          cd ./src-tauri/target
-          ls -lR .
+          ls -l .
         
       - name: 'Publish binary to release'
         continue-on-error: true
