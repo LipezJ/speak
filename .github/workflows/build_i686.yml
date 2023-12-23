@@ -93,18 +93,6 @@ jobs:
       - name: Install frontend dependencies
         run: npm install
 
-      - name: Sign packages (linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          export TAURI_PRIVATE_KEY=${{ secrets.TAURI_PRIVATE_KEY }}
-          export TAURI_KEY_PASSWORD=${{ secrets.TAURI_KEY_PASSWORD }}
-
-      - name: Sign packages (windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          $env:TAURI_PRIVATE_KEY='${{ secrets.TAURI_PRIVATE_KEY }}'
-          $env:TAURI_KEY_PASSWORD='${{ secrets.TAURI_KEY_PASSWORD }}'
-
       - name: Build the app for linux
         if: matrix.os == 'ubuntu-latest'
         run: |-
@@ -117,6 +105,8 @@ jobs:
           export RUSTFLAGS="-C linker=i686-linux-gnu-gcc"
           export PKG_CONFIG_PATH=/usr/lib/i386-linux-gnu/pkgconfig/
           export PKG_CONFIG_SYSROOT_DIR=/usr/lib/i386-linux-gnu
+          export TAURI_PRIVATE_KEY=${{ secrets.TAURI_PRIVATE_KEY }}
+          export TAURI_KEY_PASSWORD=${{ secrets.TAURI_KEY_PASSWORD }}
 
           npm run tauri build -- --target i686-unknown-linux-gnu
 
@@ -125,6 +115,9 @@ jobs:
         run: |-
           rustup target add x86_64-pc-windows-msvc
           rustup target add i686-pc-windows-msvc
+
+          $env:TAURI_PRIVATE_KEY='${{ secrets.TAURI_PRIVATE_KEY }}'
+          $env:TAURI_KEY_PASSWORD='${{ secrets.TAURI_KEY_PASSWORD }}'
 
           npm run tauri build -- --target x86_64-pc-windows-msvc
           npm run tauri build -- --target i686-pc-windows-msvc
