@@ -156,7 +156,12 @@ jobs:
       - name: Display structure of build files
         run: |
           ls -l .
-        
+
+      - name: Create update json
+        run: | 
+          echo "{\"version\":\"v1.0.0\",\"notes\":\"Test version\",\"pub_date\":\"2020-06-22T19:25:57Z\",\"platforms\":{\"linux-x86_64\":{\"signature\":\"$(cat speak-linux-0.0.1_amd64.AppImage.tar.gz.sig)\",\"url\":\"https://github.com/username/reponame/releases/download/v1.0.0/speak-linux-0.0.1_amd64.AppImage.tar.gz\"},\"linux-i386\":{\"signature\":\"$(cat speak-linux-0.0.1_i386.AppImage.tar.gz.sig)\",\"url\":\"https://github.com/username/reponame/releases/download/v1.0.0/speak-linux-0.0.1_i386.AppImage.tar.gz\"}}}" > release.json
+          cat release.json
+          
       - name: 'Publish binary to release'
         continue-on-error: true
         uses: xresloader/upload-to-github-release@v1
@@ -164,7 +169,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.event.inputs.tag_version }}
-          file: ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}*
+          file: ${{env.APP_NAME}}-${{matrix.label}}-${{ github.event.inputs.tag_version }}*,release.json
           tags: true
           draft: false
           overwrite: true
