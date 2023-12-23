@@ -102,8 +102,8 @@ jobs:
       - name: Sign packages (windows)
         if: matrix.os == 'windows-latest'
         run: |
-          $env:TAURI_PRIVATE_KEY=${{ secrets.TAURI_PRIVATE_KEY }}
-          $env:TAURI_KEY_PASSWORD=${{ secrets.TAURI_KEY_PASSWORD }}
+          $env:TAURI_PRIVATE_KEY='${{ secrets.TAURI_PRIVATE_KEY }}'
+          $env:TAURI_KEY_PASSWORD='${{ secrets.TAURI_KEY_PASSWORD }}'
 
       - name: Build the app for linux
         if: matrix.os == 'ubuntu-latest'
